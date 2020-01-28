@@ -11,12 +11,12 @@ import (
 	"sync"
 )
 
-func walkFiles(done <-chan struct{}, root string) (<-chan string, <-chan error) {
-	paths := make(chan string)
+func walkFiles(done <-chan struct{}, root string) (<-chan FileMeta, <-chan error) {
+	res := make(chan FileMeta)
 	errorChan := make(chan error, 1)
 
 	go func() {
-		defer close(paths)
+		defer close(res)
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				_, _ = fmt.Fprintln(os.Stderr, "cannot read path %s", path)
@@ -32,8 +32,7 @@ func walkFiles(done <-chan struct{}, root string) (<-chan string, <-chan error) 
 			}
 
 			select {
-			case paths <- path:
-				fmt.Printf("processing %s\n", path)
+			case res <- FileMeta{info, path}:
 			case <-done:
 				return errors.New("cancelled")
 			}
@@ -44,16 +43,15 @@ func walkFiles(done <-chan struct{}, root string) (<-chan string, <-chan error) 
 		errorChan <- err
 	}()
 
-	return paths, errorChan
+	return res, errorChan
 }
 
-func digest(done <-chan struct{}, paths <-chan string, c chan<- FileMeta) {
+func digest(done <-chan struct{}, filemetas <-chan FileMeta, c chan<- FileWithChecksumMeta) {
 	h := md5.New()
-	for path := range paths {
-		fmt.Printf("hasing %s\n", path)
-		f, err := os.Open(path)
+	for meta := range filemetas {
+		f, err := os.Open(meta.path)
 		if err != nil {
-			_, _ = fmt.Fprintln(os.Stderr, "cannot read file %s", path)
+			_, _ = fmt.Fprintln(os.Stderr, "cannot read file %s", meta.path)
 			continue
 		}
 
@@ -63,25 +61,24 @@ func digest(done <-chan struct{}, paths <-chan string, c chan<- FileMeta) {
 			continue
 		}
 
-		fmt.Printf("hasing done %s\n", path)
 		_ = f.Close()
 		h.Reset()
 
 		select {
-		case c <- FileMeta{path, h.Sum(nil)}:
+		case c <- FileWithChecksumMeta{meta, h.Sum(nil)}:
 		case <-done:
 			return
 		}
 	}
 }
 
-func MD5All(root string, workerNum int) ([]FileMeta, error) {
+func MD5All(root string, workerNum int) ([]FileWithChecksumMeta, error) {
 	done := make(chan struct{})
 	defer close(done)
 
 	paths, errc := walkFiles(done, root)
 
-	c := make(chan FileMeta)
+	c := make(chan FileWithChecksumMeta)
 	var wg sync.WaitGroup
 	wg.Add(workerNum)
 
@@ -97,7 +94,7 @@ func MD5All(root string, workerNum int) ([]FileMeta, error) {
 		close(c)
 	}()
 
-	var res []FileMeta
+	var res []FileWithChecksumMeta
 
 	for r := range c {
 		res = append(res, r)
