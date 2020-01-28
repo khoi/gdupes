@@ -1,14 +1,14 @@
 package main
 
 import (
-	"os"
+	"fmt"
 )
 
 type FileMeta struct {
-	os.FileInfo
-	path string
+	path     string
+	checksum []byte
 }
 
 func (f FileMeta) String() string {
-	return f.path
+	return fmt.Sprintf("%s %x", f.path, f.checksum)
 }
