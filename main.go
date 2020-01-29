@@ -65,7 +65,7 @@ func digest(done <-chan struct{}, filemetas <-chan FileMeta, c chan<- FileWithCh
 		h.Reset()
 
 		select {
-		case c <- FileWithChecksumMeta{meta, h.Sum(nil)}:
+		case c <- FileWithChecksumMeta{&meta, h.Sum(nil)}:
 		case <-done:
 			return
 		}

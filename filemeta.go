@@ -11,7 +11,7 @@ type FileMeta struct {
 }
 
 type FileWithChecksumMeta struct {
-	fileMeta FileMeta
+	fileMeta *FileMeta
 	checksum []byte
 }
 
