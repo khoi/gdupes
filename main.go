@@ -112,6 +112,12 @@ func findDuplicate(root string, workerNum int) (map[string][]*FileMeta, error) {
 		return nil, err
 	}
 
+	for k, v := range result {
+		if len(v) < 2 {
+			delete(result, k)
+		}
+	}
+
 	return result, nil
 }
 
