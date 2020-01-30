@@ -118,14 +118,14 @@ func findDuplicate(root string, workerNum int) (map[string][]*FileMeta, error) {
 func main() {
 	m, err := findDuplicate(os.Args[1], runtime.NumCPU())
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
 	for _, v := range m {
 		for _, meta := range v {
-			fmt.Println(meta.path)
+			fmt.Fprintln(os.Stdout, meta.path)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stdout)
 	}
 }
