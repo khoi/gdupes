@@ -11,8 +11,8 @@ import (
 	"sync"
 )
 
-func walkFiles(done <-chan struct{}, root string) (<-chan FileMeta, <-chan error) {
-	res := make(chan FileMeta)
+func walkFiles(done <-chan struct{}, root string) (<-chan *FileMeta, <-chan error) {
+	res := make(chan *FileMeta)
 	errorChan := make(chan error, 1)
 
 	go func() {
@@ -32,7 +32,7 @@ func walkFiles(done <-chan struct{}, root string) (<-chan FileMeta, <-chan error
 			}
 
 			select {
-			case res <- FileMeta{info, path}:
+			case res <- &FileMeta{fileInfo: info, path: path}:
 			case <-done:
 				return errors.New("cancelled")
 			}
@@ -46,9 +46,9 @@ func walkFiles(done <-chan struct{}, root string) (<-chan FileMeta, <-chan error
 	return res, errorChan
 }
 
-func digest(done <-chan struct{}, filemetas <-chan FileMeta, c chan<- FileWithChecksumMeta) {
+func digest(done <-chan struct{}, in <-chan *FileMeta, out chan<- *FileMeta) {
 	h := md5.New()
-	for meta := range filemetas {
+	for meta := range in {
 		f, err := os.Open(meta.path)
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, "cannot read file %s", meta.path)
@@ -61,24 +61,25 @@ func digest(done <-chan struct{}, filemetas <-chan FileMeta, c chan<- FileWithCh
 			continue
 		}
 
+		meta.checksum = h.Sum(nil)
 		_ = f.Close()
 		h.Reset()
 
 		select {
-		case c <- FileWithChecksumMeta{&meta, h.Sum(nil)}:
+		case out <- meta:
 		case <-done:
 			return
 		}
 	}
 }
 
-func MD5All(root string, workerNum int) ([]FileWithChecksumMeta, error) {
+func MD5All(root string, workerNum int) ([]*FileMeta, error) {
 	done := make(chan struct{})
 	defer close(done)
 
 	paths, errc := walkFiles(done, root)
 
-	c := make(chan FileWithChecksumMeta)
+	c := make(chan *FileMeta)
 	var wg sync.WaitGroup
 	wg.Add(workerNum)
 
@@ -94,7 +95,7 @@ func MD5All(root string, workerNum int) ([]FileWithChecksumMeta, error) {
 		close(c)
 	}()
 
-	var res []FileWithChecksumMeta
+	var res []*FileMeta
 
 	for r := range c {
 		res = append(res, r)
