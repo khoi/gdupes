@@ -11,6 +11,6 @@ type FileMeta struct {
 	checksum []byte
 }
 
-func (f FileMeta) String() string {
-	return fmt.Sprintf("%s %x", f.path, f.checksum)
+func (fileMeta FileMeta) String() string {
+	return fmt.Sprintf("%s %x", fileMeta.path, fileMeta.checksum)
 }
