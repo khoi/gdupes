@@ -1,6 +1,11 @@
 # 🧹 gdupes - finds duplicate files 
 
-## Todo
+## Usage
 
-- [ ] Faster walk https://github.com/golang/go/issues/16399
-- [ ] Test suite for symlinks 
+```bash
+gdupes ~/Downloads ~/Desktop
+```
+
+## Known Issues
+
+- output order are non-deterministic
