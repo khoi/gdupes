@@ -1,4 +1,4 @@
-# gdupes - finds duplicate files 
+# 🧹 gdupes - finds duplicate files 
 
 ## Todo
 
