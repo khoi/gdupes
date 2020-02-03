@@ -10,15 +10,20 @@ import (
 	"sync"
 )
 
-func groupFilesBySize(ctx context.Context, roots ...string) map[int64][]*FileMeta {
-	result := make(map[int64][]*FileMeta)
+func groupFilesBySize(ctx context.Context, roots ...string) map[int64]map[string]*FileMeta {
+	result := make(map[int64]map[string]*FileMeta)
 
 	for v := range walkFilesInDirectories(ctx, roots...) {
 		if v.err != nil {
 			fmt.Fprintln(os.Stderr, v.err)
 			continue
 		}
-		result[v.info.Size()] = append(result[v.info.Size()], &FileMeta{v.info, v.path, nil})
+		fileSize := v.info.Size()
+		_, exist := result[fileSize]
+		if !exist {
+			result[fileSize] = make(map[string]*FileMeta)
+		}
+		result[fileSize][v.path] = &FileMeta{v.info, v.path, nil}
 	}
 	return result
 }
@@ -29,7 +34,7 @@ func hashWorker(wg *sync.WaitGroup, in <-chan *FileMeta) {
 	for meta := range in {
 		f, err := os.Open(meta.path)
 		if err != nil {
-			_, _ = fmt.Fprintln(os.Stderr, "cannot read file %s", meta.path)
+			_, _ = fmt.Fprintf(os.Stderr, "cannot read file %s\n", meta.path)
 			continue
 		}
 
@@ -58,13 +63,16 @@ func main() {
 	}
 
 	filesGroupedBySize := groupFilesBySize(context.TODO(), os.Args[1:]...)
+
 	var filesNeedHashing []*FileMeta
 
-	for _, v := range filesGroupedBySize {
-		if len(v) < 2 { // skip unique group
+	for _, group := range filesGroupedBySize {
+		if len(group) < 2 { // skip unique group
 			continue
 		}
-		filesNeedHashing = append(filesNeedHashing, v...)
+		for _, v := range group {
+			filesNeedHashing = append(filesNeedHashing, v)
+		}
 	}
 
 	numWorker := runtime.NumCPU()
@@ -95,6 +103,12 @@ func main() {
 	for _, f := range filesNeedHashing {
 		checksum := string(f.checksum)
 		filesGroupedByHash[checksum] = append(filesGroupedByHash[checksum], f)
+	}
+
+	for hash, group := range filesGroupedByHash {
+		if len(group) < 2 {
+			delete(filesGroupedByHash, hash)
+		}
 	}
 
 	// output duplicated
