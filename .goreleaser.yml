@@ -1,0 +1,32 @@
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: 386
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - Merge pull request
+      - Merge branch
+brews:
+  - github:
+      owner: khoi
+      name: homebrew-tap
+    folder: Formula
+    homepage: https://github.com/khoi/gdupes
+    description: 🧹 gdupes - find duplicate file
+    test: |
+      system "#{bin}/gdupes ./"
